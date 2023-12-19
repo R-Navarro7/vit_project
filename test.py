@@ -2,6 +2,8 @@ import torch
 import torchvision
 import torchaudio
 
-print("Torch version:", torch.__version__)
-print("Torchvision version:", torchvision.__version__)
-print("Torchaudio version:", torchaudio.__version__)
+datita = [[1,2,3,4], [1,2,3,4], [1,2,3,4]]
+
+a,b,c,d = zip(*datita)
+
+print(a,b,c,d)
