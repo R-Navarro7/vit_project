@@ -4034,7 +4034,6 @@ Plow_Pose_or_Halasana_/246.jpg,3,12,45
 Plow_Pose_or_Halasana_/193.jpg,3,12,45
 Plow_Pose_or_Halasana_/29.jpg,3,12,45
 Plow_Pose_or_Halasana_/416.jpg,3,12,45
-Plow_Pose_or_Halasana_/486.jpg,3,12,45
 Plow_Pose_or_Halasana_/213.jpg,3,12,45
 Plow_Pose_or_Halasana_/37.jpg,3,12,45
 Plow_Pose_or_Halasana_/232.jpg,3,12,45

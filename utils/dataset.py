@@ -19,7 +19,7 @@ label_dict = {
             }
 
 class DatitaSet(torch.utils.data.Dataset):
-    def __init__(self,mode,n_classes, img_dim=64, patch_size = 8):
+    def __init__(self,mode,n_classes, img_dim=128, patch_size = 16):
         super().__init__()
         self.mode = mode
         self.n_classes = n_classes
@@ -31,11 +31,13 @@ class DatitaSet(torch.utils.data.Dataset):
 
         aug_transforms = {
                         "train": transforms.Compose([
+                            transforms.Resize((img_dim,img_dim)),
                             transforms.RandomHorizontalFlip(),
                             transforms.ToTensor(),
                             PatchTransform(patch_size=self.patch_size)
                         ]),
                         "test": transforms.Compose([
+                            transforms.Resize((img_dim,img_dim)),
                             transforms.ToTensor(),
                             PatchTransform(patch_size=self.patch_size)
                         ]),
@@ -74,10 +76,9 @@ class DatitaSet(torch.utils.data.Dataset):
         for i in tqdm(range(len(imgs_paths))):
             try:
                 img = Image.open(f'Images/{imgs_paths[i]}')
-                img = img.resize((self.img_dim,self.img_dim))
                 patched_img = self.transform(img)
-                img.close()
                 patches.append(patched_img)
+                img.close()
                 labs.append(int(labels[i]))
                 good_imgs += 1
             except:
