@@ -16,21 +16,16 @@ def train_model(
     model,
     device,
     dir_checkpoint,
-    img_dim,
     epochs, 
     batch_size,
-    patch_size,
-    n_classes,
+    dataset,
     mode = 'train',
     learning_rate: float = 1e-3,
-    val_percent: float = 0.2,  
+    val_percent: float = 0.1,  
     save_checkpoint: bool = True,
     weight_decay: float = 0.1,
     gradient_clipping: float = 1.0,
 ):
-    # Create dataset
-    dataset = DatitaSet(n_classes=n_classes, img_dim=img_dim, patch_size=patch_size, mode=mode) 
-
     # Split into train / validation partitions
     n_val = int(len(dataset) * val_percent)
     n_train = len(dataset) - n_val
@@ -39,25 +34,21 @@ def train_model(
     )
 
     # Create data loaders
-    loader_args = dict(
-        batch_size=batch_size, num_workers=os.cpu_count(), pin_memory=True
-    )
-    train_loader = DataLoader(train_set, shuffle=True, **loader_args)
-    val_loader = DataLoader(val_set, shuffle=False, **loader_args)
+    train_loader = DataLoader(train_set, shuffle=True, batch_size=batch_size)
+    val_loader = DataLoader(val_set, shuffle=False, batch_size=batch_size)
 
     # Set up the optimizer, the loss, the learning rate scheduler and the loss scaling for AMP
-    optimizer = optim.Adam(
+    optimizer = optim.AdamW(
         model.parameters(),
+        betas=(0.5, 0.9),
         lr=learning_rate,
         weight_decay=weight_decay,
         foreach=True,
     )
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, "min", patience=10
+        optimizer, "min", patience=2
     )  
-    grad_scaler = torch.cuda.amp.GradScaler()
     criterion = nn.CrossEntropyLoss() if model.n_classes > 1 else nn.BCEWithLogitsLoss()
-    global_step = 0
 
     ### Training Curves
     curves = {
@@ -67,7 +58,10 @@ def train_model(
         "val_acc": []
     }
 
-    # 5. Begin training
+    print('\n-----------------------------------------------------------------------------------------\n')
+
+
+    # Begin training
     for epoch in range(1, epochs + 1):
         model.train()
         epoch_loss = 0
@@ -90,32 +84,25 @@ def train_model(
 
             labels = labels.to(device=device, dtype=torch.long)
 
-            with torch.autocast(
-                device.type if device.type != "mps" else "cpu"
-            ):
+            predictions = model(embeddings)
+            loss = criterion(predictions, labels)  ### train loss
 
-                predictions = model(embeddings)
-                loss = criterion(predictions, labels)  ### train loss
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
-                # Store train loss
-                curves["train_loss"].append(loss)
+            # Store train loss
+            curves["train_loss"].append(loss)
 
-            optimizer.zero_grad(set_to_none=True)
-            grad_scaler.scale(loss).backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), gradient_clipping)
-            grad_scaler.step(optimizer)
-            grad_scaler.update()
+            epoch_loss += loss
 
-            global_step += 1
-            epoch_loss += loss.item()
-
-            cumulative_train_loss += loss.item()
+            cumulative_train_loss += loss
             train_loss_count += 1
             train_acc_count += labels.shape[0]
 
             # Accuracy
             class_prediction = torch.argmax(predictions, axis=1).long()
-            cumulative_train_corrects += (labels == class_prediction).sum().item()
+            cumulative_train_corrects += (labels == class_prediction).sum()
 
         ### Train Metrics
         train_loss = cumulative_train_loss / train_loss_count
@@ -130,10 +117,10 @@ def train_model(
         scheduler.step(val_loss)
 
         ### Store val_loss value everytime the model it's evaluated
-        curves["train_acc"].append(train_acc)
-        curves["train_loss"].append(train_loss)
-        curves["val_acc"].append(val_acc)
-        curves["val_loss"].append(val_loss)
+        curves["train_acc"].append(train_acc.item())
+        curves["train_loss"].append(train_loss.item())
+        curves["val_acc"].append(val_acc.item())
+        curves["val_loss"].append(val_loss.item())
 
 
         if save_checkpoint:
@@ -142,9 +129,7 @@ def train_model(
             state_dict["labels"] = dataset.y
             torch.save(
                 state_dict, str(dir_checkpoint / "checkpoint_epoch{}.pth".format(epoch))
-            )
-            logging.info(f"Checkpoint {epoch} saved!")
-        
+            )     
         print('\n-----------------------------------------------------------------------------------------\n')
 
     return curves

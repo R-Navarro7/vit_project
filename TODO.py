@@ -18,4 +18,7 @@ Mañana:
 
 -> Pretrained y comenzar entrega final
 
+Distillation? 
+Simple Mask Image Modelling? 
+
 """

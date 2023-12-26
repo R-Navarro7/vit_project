@@ -3,24 +3,29 @@ import torch.nn as nn
 import torchvision.transforms as transforms
 import torch.nn.functional as F
 
+class Patch_Embedding(nn.Module):
+    def __init__(self, in_channels, dim, patch_size):
+        super().__init__()
+        self.patch_embedding = nn.Conv2d(in_channels, dim, kernel_size=(patch_size, patch_size), stride=(patch_size, patch_size))
+
+    def forward(self, img: torch.Tensor):
+        patch = self.patch_embedding(img)   
+        return patch.flatten(2).transpose(1, 2)
 
 class ImageEmbedding(nn.Module):
-    def __init__(self, size: int, hidden_size:int, num_patches: int, dropout: float = 0.2):
+    def __init__(self, size: int, num_patches: int, dropout: float = 0.1):
         super().__init__()
 
-        self.projection = nn.Linear(size, hidden_size)
-        self.label_token = nn.Parameter(torch.rand(1, hidden_size))
-        self.position = nn.Parameter(torch.rand(1, num_patches + 1, hidden_size))
+        self.label_token = nn.Parameter(torch.zeros(1, 1, size))
+        self.position = nn.Parameter(torch.rand(1, num_patches + 1, size))
 
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, input: torch.Tensor):
-        output = self.projection(input)
-
         label_token = self.label_token.repeat(
-            output.size(0), 1, 1
+            input.size(0), 1, 1
         )  # batch_size x 1 x output_size
-        output = torch.concat([label_token, output], dim=1)
+        output = torch.concat([label_token, input], dim=1)
 
         position_encoding = self.position.repeat(output.size(0), 1, 1)
         return self.dropout(output + position_encoding)
@@ -28,7 +33,7 @@ class ImageEmbedding(nn.Module):
 
 class AttentionHead(nn.Module):
     def __init__(self, size: int):  # size is hidden size
-        super(AttentionHead, self).__init__()
+        super().__init__()
 
         self.query = nn.Linear(size, size)
         self.key = nn.Linear(size, size)
@@ -46,7 +51,6 @@ class AttentionHead(nn.Module):
 
         scores = F.softmax(scores, dim=-1)
 
-        # 8 x 64 x 64 @ 8 x 64 x 48 = 8 x 64 x 48
         output = torch.bmm(scores, v)
         return output
 
@@ -67,15 +71,15 @@ class MultiHeadAttention(nn.Module):
 
 
 class Encoder(nn.Module):
-    def __init__(self, size: int, num_heads: int, dropout: float = 0.1):
+    def __init__(self, size: int, hidden_size : int, num_heads: int, dropout: float = 0.1):
         super().__init__()
 
         self.attention = MultiHeadAttention(size, num_heads)
         self.feed_forward = nn.Sequential(
-            nn.Linear(size, 4 * size),
+            nn.Linear(size, hidden_size),
             nn.Dropout(dropout),
             nn.GELU(),
-            nn.Linear(4 * size, size),
+            nn.Linear(hidden_size, size),
             nn.Dropout(dropout),
         )
         self.norm_attention = nn.LayerNorm(size)

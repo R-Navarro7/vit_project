@@ -9,11 +9,18 @@ test_path = 'Yoga-82\yoga_test.txt'
 def data_verifier(key):
     data_dict = {'train':train_path, 'test':test_path}
     path = data_dict[key]
-    readable_images = []
 
     img_count = {'6': [0]*6,
                 '20': [0]*20,
                 '82': [0]*82}
+    
+    img_paths = {'6': {},
+                '20': {},
+                '82': {}}
+    
+    for i in img_paths.keys():
+        for k in range(int(i)):
+            img_paths[i][k] = []
 
     with open(path,'+r') as file:
         lines = file.readlines()
@@ -22,16 +29,18 @@ def data_verifier(key):
             try:
                 img = Image.open('Images/'+split_line[0])
                 img.verify()
-                readable_images.append(lines[i])
+                img_paths['6'][int(split_line[1])] += [split_line[0]]
+                img_paths['20'][int(split_line[2])] += [split_line[0]]
+                img_paths['82'][int(split_line[3])] += [split_line[0]]
                 img_count['6'][int(split_line[1])] += 1
                 img_count['20'][int(split_line[2])] += 1
                 img_count['82'][int(split_line[3])] += 1
             except:
                 continue
-    with open(f'Data_Paths/{key}.txt', 'w') as output_file:
-        output_file.writelines(readable_images)
+    with open(f'Data_Paths/{key}.json', 'w') as output_file:
+        json.dump(img_paths, output_file, indent=2)
 
-    with open(f'Data_Paths/{key}class_count.json', 'w') as json_file:
+    with open(f'Data_Paths/{key}_class_count.json', 'w') as json_file:
         json.dump(img_count, json_file, indent=2)
 
 if __name__ == '__main__':

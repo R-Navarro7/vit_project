@@ -1,9 +1,6 @@
 import torch
 import torchvision
 import torchaudio
+import numpy as np
 
-datita = [[1,2,3,4], [1,2,3,4], [1,2,3,4]]
-
-a,b,c,d = zip(*datita)
-
-print(a,b,c,d)
+cifar_trainset = torchvision.datasets.CIFAR10(root='./CIFAR', train=True, download=True, transform=None)
