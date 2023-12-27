@@ -5,3 +5,4 @@ matplotlib==3.8.2
 munch==4.0.0
 pytorch_pretrained_vit==0.0.7
 torchsummar==1.5.1
+seaborn==0.13.0

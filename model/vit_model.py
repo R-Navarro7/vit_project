@@ -15,6 +15,7 @@ class ViT(nn.Module):
         super().__init__()
         
         self.n_classes = n_classes
+        self.dim = dim
         self.freeze = freeze
 
         ### Patchify Transform
@@ -42,6 +43,9 @@ class ViT(nn.Module):
             emb = self.embedding(patch)   
             attn = self.encoders(emb)
         
-        return self.mlp_head(attn[:, 0, :])    
+        return self.mlp_head(attn[:, 0, :]) 
+    
+    def change_classification_head(self, new_class_num):
+        self.mlp_head = nn.Linear(self.dim, new_class_num)
 
 

@@ -1,11 +1,12 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import argparse
 import json
 import os
 
-def gen_curves(file_name):
+def gen_curves(path, name):
     
-    with open(f'{file_name}.json', 'r') as file:
+    with open(path, 'r') as file:
         curves = json.load(file)
 
     fig, ax = plt.subplots(1, 2, figsize=(13, 5))
@@ -27,8 +28,17 @@ def gen_curves(file_name):
     ax[1].set_title('Accuracy evolution during training')
     ax[1].legend()
 
-    if not os.path.exists(f'./Results'):
-            os.mkdir('./Results')
-    plt.savefig(f'/Results/{file_name}.png')
+    if not os.path.exists(f'./Results/plots'):
+            os.mkdir('./Results/plots')
+    plt.savefig(f'./Results/plots/{name}.png')
 
     #[tensor.cpu().detach().item() for tensor in
+
+if __name__ == '__main__':
+    
+    parser = argparse.ArgumentParser(description='Curve generator.')
+    parser.add_argument('--path', type=str, default="", help='Path to curve json.')
+    parser.add_argument('--name', type=str, default="", help='Nombre del grafico.')
+    args = parser.parse_args()
+    
+    gen_curves(args.path, args.name)
