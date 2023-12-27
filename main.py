@@ -1,12 +1,12 @@
 import torch
 import torchvision
+from torch import nn
 from torchsummary import summary
 import json
 import argparse
 import numpy as np
 from pathlib import Path
 import matplotlib.pyplot as plt
-from pytorch_pretrained_vit import ViT  as pretrained_ViT
 
 from utils.train import train_model
 import utils.dataset as ds
@@ -18,16 +18,23 @@ import sys, os
 sys.path.append('..')
 
 if __name__ == "__main__":
+    
+    if not os.path.exists('./Data_Paths'):
+        raise Exception('Please remember to run the gen_readable_paths.py before working with this module.')
+    
+    if not os.path.exists('./Images'):
+        raise Exception('Please remember to download the Yoga_82 dataset and create the "./Images" directory before working with this module.')
+    
     ### Argument Parse
     parser = argparse.ArgumentParser(description='Main script for ViT proyect.')
 
-    parser.add_argument('--mode',choices=["train", "test", "transfer", "pretrained"], type=str, default="train", help='Mode to run.')
+    parser.add_argument('--mode',choices=["train", "test", "transfer"], type=str, default="train", help='Mode to run.')
     parser.add_argument('--n_encoders', type=int, default=3, help='Number of encoders')
     parser.add_argument('--n_heads', type=int, default=8, help='Number of attention heads')
     parser.add_argument('--img_size', type=int, default=128, help='Image size')
     parser.add_argument('--patch_size', type=int, default=16, help='Patch size')
     parser.add_argument('--dim', type=int, default=768, help='Embedding Dimension')
-    parser.add_argument('--hidden_size', type=int, default=1024, help='Hidden size')
+    parser.add_argument('--hidden_size', type=int, default=3072, help='Hidden size')
     parser.add_argument('--n_classes', type=int, default=6, help='Number of classes')
     parser.add_argument('--epochs', type=int, default=30, help='Number of epochs')
     parser.add_argument('--batch_size', type=int, default=64, help='Batch size')
@@ -101,7 +108,6 @@ if __name__ == "__main__":
             num_heads=args.n_heads,
             num_encoders=args.n_encoders,
         )
-        
         ### Dataset Load / Generate
         if os.path.exists(f'Datasets/test_{args.n_classes}_{args.img_size}.pkl'):
             test_dataset = torch.load(f'Datasets/test_{args.n_classes}_{args.img_size}.pkl')
@@ -151,17 +157,9 @@ if __name__ == "__main__":
                 ds.main(args.mode, 82, args.img_size)
                 train_dataset = torch.load(f'Datasets/train_{82}_{args.img_size}.pkl')
             
-            # Best Checkpoints found using test mode.
-            best_cp = {
-                '6': 14,
-                '20': 6,
-                '82': 0,
-            }
-            
             file_20 = f'20_{args.batch_size}_{args.n_heads}_{args.n_encoders}_{args.img_size}_{args.patch_size}_{args.hidden_size}'
 
-            checkpoints = os.listdir(f'./checkpoints/{file_20}')
-            state_dict = torch.load(f'./checkpoints/{file_20}/{checkpoints[best_cp["20"]]}')
+            state_dict = torch.load(f'./checkpoints/{file_20}/checkpoint_epoch30.pth')
             del state_dict["labels"]
             
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -212,22 +210,14 @@ if __name__ == "__main__":
                     os.mkdir('./Datasets')
                 ds.main(args.mode, 20, args.img_size)
                 train_dataset = torch.load(f'Datasets/train_{20}_{args.img_size}.pkl')
-            
-            # Best Checkpoints found using test mode.
-            best_cp = {
-                '6': 14,
-                '20': 6,
-                '82': 0,
-            }
-            
+
             file_6 = f'6_{args.batch_size}_{args.n_heads}_{args.n_encoders}_{args.img_size}_{args.patch_size}_{args.hidden_size}'
 
-            checkpoints = os.listdir(f'./checkpoints/{file_6}')
-            state_dict = torch.load(f'./checkpoints/{file_6}/{checkpoints[best_cp["6"]]}')
+            state_dict = torch.load(f'./checkpoints/{file_6}/checkpoint_epoch30.pth')
             del state_dict["labels"]
             
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-            dir_checkpoint = Path(f'./checkpoints/transfer_6_to_20/')
+            dir_checkpoint = Path(f'./checkpoints/6_to_20/')
             
             model.load_state_dict(state_dict)
             
@@ -256,21 +246,8 @@ if __name__ == "__main__":
                 ds.main(args.mode, 82, args.img_size)
                 train_dataset = torch.load(f'Datasets/train_{82}_{args.img_size}.pkl')
             
-            # Best Checkpoints found using test mode.
-            best_cp = {
-                '6': 14,
-                '20': 6,
-                '82': 0,
-            }
-            
-            file_20 = f'20_{args.batch_size}_{args.n_heads}_{args.n_encoders}_{args.img_size}_{args.patch_size}_{args.hidden_size}'
-
-            checkpoints = os.listdir(f'./checkpoints/{file_20}')
-            state_dict = torch.load(f'./checkpoints/{file_20}/{checkpoints[best_cp["6"]]}')
-            del state_dict["labels"]
-            
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-            dir_checkpoint = Path(f'./checkpoints/transfer_6_to_20_to_82/')
+            dir_checkpoint = Path(f'./checkpoints/6_to_20_to_82/')
 
             model.change_classification_head(new_class_num = 82)
 
@@ -289,19 +266,5 @@ if __name__ == "__main__":
             curves['val_acc'] = [val.cpu().detach().item() if type(val) != float else val for  val in curves['val_acc']]
             curves['train_acc'] = [val.cpu().detach().item() if type(val) != float else val for val in curves['train_acc']]
 
-            with open(f'Results/curves/curves_transfer_6_to_20_to_82.json', 'w') as file:
+            with open(f'Results/curves/curves_6_to_20_to_82.json', 'w') as file:
                 json.dump(curves, file)
-
-    if args.mode == "pretrained":
-        ds.main(args.mode, args.n_classes, args.img_size)
-        """ pretrained_vit = pretrained_ViT('B_16_imagenet1k', pretrained=True)
-        #summary(pretrained_vit.cuda(), (3, 384, 384))
-
-        ### Dataset Load / Generate
-        if os.path.exists(f'Datasets/pt_train_{args.n_classes}.pkl'):
-            pt_train_dataset = torch.load(f'Datasets/pt_train_{args.n_classes}.pkl')
-        else:
-            if not os.path.exists(f'./Datasets'):
-                os.mkdir('./Datasets')
-            ds.main(args.mode, args.n_classes, args.img_size, args.patch_size)
-            train_dataset = torch.load(f'Datasets/pt_train_{args.n_classes}.pkl') """
